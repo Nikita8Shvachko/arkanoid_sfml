@@ -1,0 +1,3 @@
+/Users/askoritan/programming/arkanoid_sfml/cmake-build-debug/CMakeFiles/arkanoid_sfml.dir
+/Users/askoritan/programming/arkanoid_sfml/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/askoritan/programming/arkanoid_sfml/cmake-build-debug/CMakeFiles/rebuild_cache.dir
