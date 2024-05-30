@@ -4,7 +4,7 @@ project(arkanoid_sfml)
 set(CMAKE_CXX_STANDARD 17)
 
 # Find SFML package
-find_package(SFML 2.5 COMPONENTS system window graphics network audio REQUIRED)
+find_package(SFML 2.5 COMPONENTS system  graphics network audio REQUIRED)
 
 add_executable(arkanoid_sfml main.cpp)
 
