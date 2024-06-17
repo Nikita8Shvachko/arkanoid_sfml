@@ -264,8 +264,8 @@ public:
     }
     void changeSpeed() {
         if (rand() % 10 == 0) {
-            dx *= 1.5f;
-            dy *= 1.5f;
+            dx *= 1.2f;
+            dy *= 1.2f;
         } else{
             dx /= 1.5f;
             dy /= 1.5f;
@@ -478,6 +478,13 @@ public:
         }
         if (ball.get_position().y > HEIGHT || ball.get_position().y < 0) {
             ball.change_move_direction_y();
+            if(ball.get_position().y>HEIGHT){
+                lifes--;
+                if(ball.save_once== true){
+                    lifes++;
+                    ball.remove_save_once_bonus();
+                }
+            }
         }
         if (ball.get_position().x > WIDTH || ball.get_position().x < 0) {
             ball.change_move_direction_x();
