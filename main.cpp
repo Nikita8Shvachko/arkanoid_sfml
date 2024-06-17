@@ -445,20 +445,20 @@ public:
                 // Apply the effect of the bonus
                 switch (it->getBonusType()) {
                     case CHANGE_SPEED_BALL:
-                        ball.changeSpeed(); // Assuming you have a method to change the ball's speed
+                        ball.changeSpeed();
                         break;
                     case CHANGE_SIZE_PADDLE:
-                        paddle.size_up(); // Assuming you have a method to change the paddle's size
+                        paddle.size_up();
                         break;
                     case SAVE_ONCE:
                         ball.save_once_bonus(true);
-                        // Implement the logic for saving the game once
+
                         break;
                     case CHANGE_DIRECTION:
-                        ball.change_move_direction_xy(); // Assuming you have a method to change the ball's direction
+                        ball.change_move_direction_xy();
                         break;
                     case STICKY_PADDLE:
-                        paddle.sticky_paddle_bonus(); // Assuming you have a method to make the paddle sticky
+                        paddle.sticky_paddle_bonus();
                         ball.is_moving = false;
                         ball.set_position(paddle.get_position());
                         break;
