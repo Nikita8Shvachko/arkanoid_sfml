@@ -59,13 +59,13 @@ public:
     Moveable() : dx(0), dy(0), is_moving(false) {}
 
     Moveable(sf::Texture &texture, sf::Vector2f position) : dx(0), dy(0), is_moving(false) {
+
         sprite.setTexture(texture);
         sprite.setPosition(position);
+        sprite.setScale(5 * BALL_SIZE / sprite.getLocalBounds().width, 5 * BALL_SIZE / sprite.getLocalBounds().height);
     }
 
-    Moveable(sf::Vector2f position) : dx(0), dy(0), is_moving(false) {
 
-    }
 
     void move(float _dx, float _dy) {
         is_moving = true;
@@ -74,42 +74,41 @@ public:
         sprite.move(dx, dy);
     }
 
-    void draw(sf::RenderWindow &window) {
-        window.draw(sprite);
-    }
-
     sf::Vector2f get_position() const {
         return sprite.getPosition();
     }
 
-    sf::FloatRect get_global_bounds() const {
-        return sprite.getGlobalBounds();
-    }
 
     void set_position(sf::Vector2f position) {
         sprite.setPosition(position);
     }
+
     void change_move_direction_xy() {
         is_moving = true;
-        dx = dx ;
+        dx = -dx;
+        dy = -dy;
     }
+
+
     void change_move_direction_y() {
         is_moving = true;
         dy = -dy;
-    }   void change_move_direction_x() {
+    }
+
+    void change_move_direction_x() {
         is_moving = true;
         dx = -dx;
     }
 
     bool is_collision(const Moveable &other) const {
-        return sprite.getGlobalBounds().intersects(other.get_global_bounds());
+        return sprite.getGlobalBounds().intersects(other.sprite.getGlobalBounds());
     }
 };
-
-class Bonus {
-public:
+class Bonus : public Moveable {
+private:
     BonusType bonusType;
 
+public:
     Bonus() {
         int number = rand() % 50;
         if (number < 10) {
@@ -125,30 +124,37 @@ public:
         }
     }
 
-    Moveable drop_bonus(sf::Texture &texture, sf::Vector2f position) {
-        Moveable drop(texture, position);
-        drop.dy = 5;
+    void initialize(sf::Texture &texture, sf::Vector2f position) {
+        sprite.setTexture(texture);
+        sprite.setPosition(position);
+        sprite.setScale(5 * BALL_SIZE / sprite.getLocalBounds().width, 5 * BALL_SIZE / sprite.getLocalBounds().height);
+        dx = 0;
+        dy = 5;
         switch (bonusType) {
             case CHANGE_SPEED_BALL:
-                drop.sprite.setColor(sf::Color::Green);
+                sprite.setColor(sf::Color::Green);
                 break;
             case CHANGE_SIZE_PADDLE:
-                drop.sprite.setColor(sf::Color::Blue);
+                sprite.setColor(sf::Color::Blue);
                 break;
             case SAVE_ONCE:
-                drop.sprite.setColor(sf::Color::Red);
+                sprite.setColor(sf::Color::Red);
                 break;
             case CHANGE_DIRECTION:
-                drop.sprite.setColor(sf::Color::White);
+                sprite.setColor(sf::Color::White);
                 break;
             case STICKY_PADDLE:
-                drop.sprite.setColor(sf::Color::Magenta);
+                sprite.setColor(sf::Color::Magenta);
                 break;
         }
-        drop.is_moving = true;
-        return drop;
+        is_moving = true;
+    }
+
+    BonusType getBonusType() const {
+        return bonusType;
     }
 };
+
 
 class Brick : public Moveable {
 public:
@@ -161,7 +167,7 @@ public:
     Brick(sf::Vector2f position, int health, sf::Texture &brick_green, sf::Texture &brick_red,
           sf::Texture &brick_orange, sf::Texture &brick_purple, sf::Texture &brick_unbreakable,
           sf::Texture &brick_bonus)
-            : Moveable(position), health(health), hidden_bonus(false) {
+            : Moveable(), health(health), hidden_bonus(false) {
 
         brick_random_color(brick_green, brick_red, brick_orange, brick_purple, brick_unbreakable, brick_bonus);
         sprite.setPosition(position);
@@ -202,17 +208,6 @@ public:
     bool is_destroyed() const {
         return (type != UNBREAKABLE && health <= 0);
     }
-
-    bool operator==(const Brick &other) const {
-        return sprite.getPosition() == other.sprite.getPosition() &&
-               type == other.type &&
-               health == other.health &&
-               hidden_bonus == other.hidden_bonus;
-    }
-
-    bool operator!=(const Brick &other) const {
-        return !(*this == other);
-    }
 };
 
 class Paddle : public Moveable {
@@ -231,18 +226,24 @@ public:
     }
 
     void size_up() {
-        width *=1.2;
+        width = static_cast<int>(width * 1.2); // update the width variable
+        sprite.setScale(static_cast<float>(width) / sprite.getLocalBounds().width,
+                        static_cast<float>(height) / sprite.getLocalBounds().height);
+    }
+    void sizeStandard() {
+        width = PADDLE_WIDTH;
         sprite.setScale(static_cast<float>(width) / sprite.getLocalBounds().width,
                         static_cast<float>(height) / sprite.getLocalBounds().height);
     }
 
+
     void sticky_paddle_bonus() {
         sticky_paddle = true;
     }
+
     void remove_sticky_paddle_bonus() {
         sticky_paddle = false;
     }
-
 
 
 };
@@ -256,24 +257,40 @@ public:
     Ball(sf::Texture &texture, sf::Vector2f position) : Moveable(texture, position), save_once(false) {}
 
     void speed_up() {
-        dx *= 1.1f;
-        dy *= 1.1f;
+        if (dx < 100 && dy < 100) {
+            dx *= 1.1f;
+            dy *= 1.1f;
+        }
+    }
+    void changeSpeed() {
+        if (rand() % 10 == 0) {
+            dx *= 1.5f;
+            dy *= 1.5f;
+        } else{
+            dx /= 1.5f;
+            dy /= 1.5f;
+        }
+
     }
 
     void save_once_bonus(bool _save_once) {
         save_once = _save_once;
     }
+    void remove_save_once_bonus() {
+        save_once = false;
+    }
 };
 
 class Window {
-public:
+private:
     sf::RenderWindow window;
     int width;
     int height;
     int fps;
 
+public:
     Window() : width(WIDTH), height(HEIGHT), fps(FPS) {
-        window.create(sf::VideoMode(width, height), "Arkanoid",   sf::Style::Default);
+        window.create(sf::VideoMode(width, height), "Arkanoid", sf::Style::Default);
         window.setFramerateLimit(fps);
     }
 
@@ -303,25 +320,26 @@ public:
 };
 
 class Game : public Window {
-public:
-    std::vector <Moveable> drop;
+private:
+    std::vector<Bonus> drops;
+    Moveable droping_sprite;
     Paddle paddle;
     Ball ball;
     std::vector<Brick> bricks;
 
-    sf::Texture backgroundTexture;
-    sf::Sprite backgroundSprite;
+        sf::Texture backgroundTexture;
+        sf::Sprite backgroundSprite;
 
-    sf::Texture ballTexture;
-    sf::Texture paddleTexture;
+        sf::Texture ballTexture;
+        sf::Texture paddleTexture;
 
-    sf::Texture brickTextureGreen;
-    sf::Texture brickTextureRed;
-    sf::Texture brickTextureOrange;
-    sf::Texture brickTexturePurple;
-    sf::Texture brickTextureUnbreakable;
-    sf::Texture bonusTexture;
-    sf::Texture dropTexture;
+        sf::Texture brickTextureGreen;
+        sf::Texture brickTextureRed;
+        sf::Texture brickTextureOrange;
+        sf::Texture brickTexturePurple;
+        sf::Texture brickTextureUnbreakable;
+        sf::Texture bonusTexture;
+        sf::Texture dropTexture;
 
     sf::Text scoreText;
     sf::Text lifeText;
@@ -335,6 +353,244 @@ public:
     bool is_win;
     bool is_lose;
 
+
+    void loadTextures() {
+        backgroundTexture.loadFromFile(BACKGROUND_GAME_TEXTURE_FILE);
+        ballTexture.loadFromFile(BALL_TEXTURE_FILE);
+        paddleTexture.loadFromFile(PADDLE_TEXTURE_FILE);
+
+        brickTextureGreen.loadFromFile(BRICK_GREEN_TEXTURE_FILE);
+        brickTextureRed.loadFromFile(BRICK_RED_TEXTURE_FILE);
+        brickTextureOrange.loadFromFile(BRICK_ORANGE_TEXTURE_FILE);
+        brickTexturePurple.loadFromFile(BRICK_PURPLE_TEXTURE_FILE);
+        brickTextureUnbreakable.loadFromFile(BRICK_UNBREAKABLE_TEXTURE_FILE);
+        bonusTexture.loadFromFile(BONUS_TEXTURE_FILE);
+        dropTexture.loadFromFile(CIRCLE_TEXTURE_FILE);
+    }
+
+    void initializeBricks() {
+        for (int i = 0; i < GRID_SIZE_X; i++) {
+            for (int j = 0; j < GRID_SIZE_Y; j++) {
+                Brick brick(sf::Vector2f(i * BRICK_SIZE_X, 100 + j * BRICK_SIZE_Y), rand() % 5, brickTextureGreen,
+                            brickTextureRed, brickTextureOrange, brickTexturePurple, brickTextureUnbreakable,
+                            bonusTexture);
+                bricks.push_back(brick);
+            }
+        }
+    }
+
+
+    void updateScore() {
+        scoreText.setString("Score: " + std::to_string(score));
+    }
+
+    void updateLife() {
+        lifeText.setString("Lifes: " + std::to_string(lifes));
+    }
+
+    void reset() {
+        lifes = AMOUNT_OF_LIFES;
+        score = 0;
+        game_started = false;
+        is_win = false;
+        is_lose = false;
+        ball.set_position(sf::Vector2f(WIDTH / 2, HEIGHT - 2 * PADDLE_HEIGHT - BALL_SIZE));
+        ball.is_moving = false;
+        ball.dx = 5;
+        ball.dy = 7;
+        paddle.sizeStandard();
+        paddle.set_position(sf::Vector2f(WIDTH / 2 - PADDLE_WIDTH / 2, HEIGHT - PADDLE_HEIGHT));
+        bricks.clear();
+        initializeBricks();
+        update();
+    }
+
+
+public:
+    void checkBricksCollision() {
+        for (auto it = bricks.begin(); it != bricks.end();) {
+            if (ball.is_collision(*it)) {
+                if (it->type == SPEED_UP) {
+                    ball.speed_up();
+                    ball.change_move_direction_y();
+                }
+                if (it->type != UNBREAKABLE) {
+                    it->take_hit();
+                    if (it->is_destroyed()) {
+                        if (it->type == BONUS || it->type == HIDDEN_BONUS) {
+                            Bonus drop;
+                            drop.initialize(dropTexture, it->get_position());
+                            drops.push_back(drop);
+                        }
+                        score += 10;
+                        updateScore();
+                        it = bricks.erase(it);
+                    } else {
+                        ++it;
+                    }
+                } else {
+                    ++it;
+                }
+            } else {
+                ++it;
+            }
+        }
+    }
+
+
+
+    void checkDropsCollision() {
+        for (auto it = drops.begin(); it != drops.end();) {
+            if (paddle.is_collision(*it)) {
+                // Apply the effect of the bonus
+                switch (it->getBonusType()) {
+                    case CHANGE_SPEED_BALL:
+                        ball.changeSpeed(); // Assuming you have a method to change the ball's speed
+                        break;
+                    case CHANGE_SIZE_PADDLE:
+                        paddle.size_up(); // Assuming you have a method to change the paddle's size
+                        break;
+                    case SAVE_ONCE:
+                        ball.save_once_bonus(true);
+                        // Implement the logic for saving the game once
+                        break;
+                    case CHANGE_DIRECTION:
+                        ball.change_move_direction_xy(); // Assuming you have a method to change the ball's direction
+                        break;
+                    case STICKY_PADDLE:
+                        paddle.sticky_paddle_bonus(); // Assuming you have a method to make the paddle sticky
+                        ball.is_moving = false;
+                        ball.set_position(paddle.get_position());
+                        break;
+                }
+                // Erase the drop after applying the bonus
+                it = drops.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+
+    void checkCollision() {
+        if (ball.is_collision(paddle)) {
+            ball.change_move_direction_y();
+        }
+        if (ball.get_position().y > HEIGHT || ball.get_position().y < 0) {
+            ball.change_move_direction_y();
+        }
+        if (ball.get_position().x > WIDTH || ball.get_position().x < 0) {
+            ball.change_move_direction_x();
+        }
+        checkDropsCollision();
+        checkBricksCollision();
+
+    }
+
+
+    void moveEntities() {
+        if (ball.is_moving) {
+            ball.move(ball.dx, ball.dy);
+        }
+        for (auto &it: drops) {
+            it.move(it.dx, it.dy);
+        }
+
+
+    }
+
+    void render() {
+        clear();
+        draw(backgroundSprite);
+        draw(ball.sprite);
+        draw(paddle.sprite);
+
+        for (auto &brick: bricks) {
+            draw(brick.sprite);
+        }
+        for (auto &bonus: drops) {
+            draw(bonus.sprite);
+        }
+        updateScore();
+        updateLife();
+        draw(scoreText);
+        draw(lifeText);
+
+        if (is_win) {
+            draw(winText);
+        } else if (is_lose) {
+            draw(loseText);
+        }
+
+        update();
+    }
+
+    // Track key states
+    bool moveLeft = false;
+    bool moveRight = false;
+
+    void check_events() {
+        sf::Event event;
+        while (pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                close();
+            }
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::A) {
+                    moveLeft = true;
+                }
+                if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::D) {
+                    moveRight = true;
+                }
+                if (event.key.code == sf::Keyboard::Space) {
+                    ball.is_moving = !ball.is_moving;
+                }
+                if (event.key.code == sf::Keyboard::R) {
+                    reset();
+                }
+            }
+            if (event.type == sf::Event::KeyReleased) {
+                if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::A) {
+                    moveLeft = false;
+                }
+                if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::D) {
+                    moveRight = false;
+                }
+            }
+        }
+    }
+
+    void update_paddle() {
+        if (moveLeft && paddle.get_position().x > 0) {
+            paddle.move(-11, 0);
+        }
+        if (moveRight && paddle.get_position().x < (WIDTH - PADDLE_WIDTH)) {
+            paddle.move(11, 0);
+        }
+    }
+
+
+    void check_win_lose() {
+        if (bricks.empty()) {
+            is_win = true;
+        }
+        bool only_unbreakable = true;
+        for (const auto &brick: bricks) {
+            if (brick.type != UNBREAKABLE) {
+                only_unbreakable = false;
+                break;
+            }
+        }
+        if (!bricks.empty() && only_unbreakable) {
+            is_win = true;
+        }
+
+        if (lifes <= 0) {
+            is_lose = true;
+        }
+    }
+
+public:
     Game() : lifes(AMOUNT_OF_LIFES), score(0), game_started(false), is_win(false), is_lose(false) {
         font.loadFromFile(FONT_FILE);
 
@@ -364,185 +620,29 @@ public:
 
         backgroundSprite.setTexture(backgroundTexture);
 
-        ball = Ball(ballTexture, sf::Vector2f(WIDTH / 2, HEIGHT - PADDLE_HEIGHT - BALL_SIZE));
-        ball.sprite.setScale( 2*BALL_SIZE / ball.sprite.getLocalBounds().width ,  2*BALL_SIZE / ball.sprite.getLocalBounds().height);
+        ball = Ball(ballTexture, sf::Vector2f(WIDTH / 2 - BALL_SIZE, HEIGHT - PADDLE_HEIGHT - 2 * BALL_SIZE));
+
+        ball.sprite.setScale(2 * BALL_SIZE / ball.sprite.getLocalBounds().width,
+                             2 * BALL_SIZE / ball.sprite.getLocalBounds().height);
         paddle = Paddle(paddleTexture, sf::Vector2f(WIDTH / 2 - PADDLE_WIDTH / 2, HEIGHT - PADDLE_HEIGHT));
 
         initializeBricks();
     }
 
-    void loadTextures() {
-        backgroundTexture.loadFromFile(BACKGROUND_GAME_TEXTURE_FILE);
-        ballTexture.loadFromFile(BALL_TEXTURE_FILE);
-        paddleTexture.loadFromFile(PADDLE_TEXTURE_FILE);
-
-        brickTextureGreen.loadFromFile(BRICK_GREEN_TEXTURE_FILE);
-        brickTextureRed.loadFromFile(BRICK_RED_TEXTURE_FILE);
-        brickTextureOrange.loadFromFile(BRICK_ORANGE_TEXTURE_FILE);
-        brickTexturePurple.loadFromFile(BRICK_PURPLE_TEXTURE_FILE);
-        brickTextureUnbreakable.loadFromFile(BRICK_UNBREAKABLE_TEXTURE_FILE);
-        bonusTexture.loadFromFile(BONUS_TEXTURE_FILE);
-        dropTexture.loadFromFile(CIRCLE_TEXTURE_FILE);
-    }
-
-    void initializeBricks() {
-
-        for (int i = 0; i < GRID_SIZE_X; i++) {
-            for (int j = 0; j < GRID_SIZE_Y; j++) {
-                Brick brick(sf::Vector2f(i * BRICK_SIZE_X, 100 + j * BRICK_SIZE_Y), rand() % 5, brickTextureGreen, brickTextureRed,
-                            brickTextureOrange, brickTexturePurple, brickTextureUnbreakable, bonusTexture);
-                std::cout << brick.type << " "<<brick.is_moving<<" "<< i * BRICK_SIZE_X<<" "<<100 + j * BRICK_SIZE_Y << std::endl;
-                brick.is_moving = false;
-                brick.draw(window);
-                window.display();
-                bricks.push_back(brick);
-            }
-        }
-    }
-
-    void updateScore() {
-        scoreText.setString("Score: " + std::to_string(score));
-    }
-
-    void updateLife() {
-        lifeText.setString("Lifes: " + std::to_string(lifes));
-    }
-
-    void reset() {
-        lifes = AMOUNT_OF_LIFES;
-        score = 0;
-        game_started = false;
-        is_win = false;
-        is_lose = false;
-        ball.set_position(sf::Vector2f(WIDTH / 2, HEIGHT - 2*PADDLE_HEIGHT - BALL_SIZE));
-        ball.is_moving = false;
-        ball.dx = 5;
-        ball.dy = 7;
-        paddle.set_position(sf::Vector2f(WIDTH / 2 - PADDLE_WIDTH / 2, HEIGHT - PADDLE_HEIGHT));
-        bricks.clear();
-        initializeBricks();
-    }
-
-    void checkCollision() {
-        if (ball.is_collision(paddle)) {
-            ball.change_move_direction_y();
-        }
-        if(ball.get_position().y > HEIGHT or ball.get_position().y < 0){
-             ball.change_move_direction_y();
-        }
-        else if(ball.get_position().x > WIDTH or ball.get_position().x < 0){
-            ball.change_move_direction_x();
-
-        }
-        if(paddle.get_position().x > WIDTH - PADDLE_WIDTH or paddle.get_position().x < 10){
-            paddle.move(-paddle.dx,0);
-
-        }
-
-        for (auto it = bricks.begin(); it != bricks.end(); it++) {  // Check collision with bricks) {
-            if (ball.is_collision(*it)) {
-                if(it->type == SPEED_UP){
-                    ball.speed_up();
-                }
-                ball.change_move_direction_y();
-                if (it->type!= UNBREAKABLE) {
-                    it->take_hit();
-                    if (it->is_destroyed() ) {
-                        if (it->type == BONUS || it->type == HIDDEN_BONUS) {
-                            Bonus bonus;
-                            Moveable drop = bonus.drop_bonus(dropTexture, it->get_position());
-                            drop.move(drop.dx, drop.dy);  // Initial drop movement
-                        }
-                        bricks.erase( it );
-                        score += 10;
-                        updateScore();
-                    }
-                }
-            }
-        }
-    }
-
-    void moveEntities() {
-        if (ball.is_moving) {
-            ball.move(ball.dx, ball.dy);
-        }
-        for(auto it = drop.begin(); it != drop.end(); it++){
-            it->move(it->dx, it->dy);
-        }
-
-
-    }
-
-    void draw() {
-        clear();
-        window.draw(backgroundSprite);
-        window.draw(ball.sprite);
-        window.draw(paddle.sprite);
-
-        for (const auto &brick: bricks) {
-            window.draw(brick.sprite);
-        }
-        for(const auto &bonus: drop){
-            window.draw(bonus.sprite);
-        }
-        updateScore();
-        updateLife();
-        window.draw(scoreText);
-        window.draw(lifeText);
-
-        if (is_win) {
-            window.draw(winText);
-        } else if (is_lose) {
-            window.draw(loseText);
-        }
-
-        update();
-    }
-
     void run() {
+
         while (isOpen()) {
-            sf::Event event;
-            while (pollEvent(event)) {
-                if (event.type == sf::Event::Closed) {
-                    close();
-                }
-                      if (event.type == sf::Event::KeyPressed and event.key.code == sf::Keyboard::Space) {
-                        ball.is_moving = !ball.is_moving;
-                    }
-                      if (event.type == sf::Event::KeyPressed and event.key.code == sf::Keyboard::R) {
-                        reset();
-                    }}
+            check_events();
 
-            if (event.type == sf::Event::KeyPressed and event.key.code == sf::Keyboard::Left) {
-                paddle.move(-5, 0);
-            }  if (event.type == sf::Event::KeyPressed and event.key.code == sf::Keyboard::Right) {
-                paddle.move(5, 0);
-            }
-
+            update_paddle();
             checkCollision();
-//
-             moveEntities();
-            draw();
+            moveEntities();
+            render();
+            check_win_lose();
 
-             if (bricks.empty()) {
-                is_win = true;
-            }
-            bool only_unbrakeable = true;  // Check if there are only unbreakable bricks left in thev
-            for (const auto &brick: bricks) {
-                if(brick.type == UNBREAKABLE){
-                    only_unbrakeable = false;
-                    break;
-                }
-            }
-             if (!bricks.empty() and only_unbrakeable) {
-                 is_win = true;
-            }
-
-            if (lifes == 0) {
-                is_lose = true;
-            }
         }
     }
+
 };
 
 int main() {
